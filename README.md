@@ -4,6 +4,8 @@
 
 *fastgaia* offers a command-line interface and a comprehensive Python function for inferring the geographic locations of ancestors given a tree sequence. After installing, use `fastgaia --help` from terminal or `fastgaia.infer_locations(...)` in your Python console for more details.
 
+**Note**: *fastgaia* provides improved efficiency at the expense of accuracy. While inferences for more nodes with more recent samples as descendants will be close in accuracy to inferences from *gaia*, inferences in the deep past will be increasingly inaccurate compared to *gaia* without sufficient temporal sampling.
+
 ## Features
 
 - **Continuous Inference**: Infers continuous locations of nodes based on provided sample locations or tree sequence data.
