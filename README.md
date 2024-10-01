@@ -7,8 +7,8 @@ Co-written by Chris Talbot and ChatGPT o1-mini, based on *gaia* from Grundler et
 
 ## Features
 
-- **Continuous Inference**: Infers continuous locations of nodes based on provided sample locations or tree sequence data.
-- **Discrete Inference**: Infers discrete states of nodes with optional cost matrix considerations.
+- **Continuous Inference**: Infers continuous locations of nodes based on provided sample locations or tree sequence individual location data.
+- **Discrete Inference**: Infers discrete states of nodes using a transition cost matrix.
 - **Flexible Output**: Outputs results in CSV format for easy analysis.
 
 ## Installation
