@@ -1,6 +1,8 @@
-# fastgaia
+# *fastgaia*
 
-fastgaia is an implementation of gaia (Grundler et al., [pre-print here](https://www.biorxiv.org/content/10.1101/2024.03.27.586858v2), [GitHub here](https://github.com/blueraleigh/gaia)) that can run 30x faster for large tree sequences in continuous space and improves inferences in the presence of internal samples.
+*fastgaia* is an implementation of gaia (Grundler et al., [pre-print here](https://www.biorxiv.org/content/10.1101/2024.03.27.586858v2), [GitHub here](https://github.com/blueraleigh/gaia)) that can run 30x faster for large tree sequences in continuous space and improves inferences in the presence of internal samples.
+
+*fastgaia* offers a command-line interface and a comprehensive python function for inferring the geographic locations of ancestors given a tree sequence. After installing, use `fastgaia --help` or `fastgaia.infer_locations(...)` for more details.
 
 ## Features
 
