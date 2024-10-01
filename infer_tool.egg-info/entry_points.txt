@@ -1,2 +1,0 @@
-[console_scripts]
-infer-tool = scripts.infer_tool_cli:main
