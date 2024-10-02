@@ -1,5 +1,5 @@
 # *fastgaia*
-Co-written by Chris Talbot and ChatGPT o1-mini, based on *gaia* from Grundler et al., [pre-print here](https://www.biorxiv.org/content/10.1101/2024.03.27.586858v2), [GitHub here](https://github.com/blueraleigh/gaia).
+Designed and implemented by Chris Talbot, based on *gaia* from Grundler et al., [pre-print here](https://www.biorxiv.org/content/10.1101/2024.03.27.586858v2), [GitHub here](https://github.com/blueraleigh/gaia).
 
 *fastgaia* is a Python package implementation of *gaia* that can run up to 30x faster for large tree sequences. *fastgaia* offers a command-line interface and a comprehensive Python function for inferring the geographic locations of ancestors given a tree sequence. After installing, use `fastgaia --help` from terminal or `fastgaia.infer_locations(...)` in your Python console for more details.
 
