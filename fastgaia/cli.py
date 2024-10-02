@@ -2,7 +2,7 @@
 
 import argparse
 import sys
-from fastgaia.main import infer_locations
+from fastgaia.main import infer_locations, VERBOSITY_NONE, VERBOSITY_MINIMAL, VERBOSITY_MAXIMUM
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Infer node locations or states from a tree sequence.")
@@ -29,12 +29,22 @@ def parse_arguments():
                         help='Path to save continuous_sample_locations.csv (default: continuous_sample_locations.csv).')
     parser.add_argument('--output-debug', type=str, default="debug_info.csv",
                         help='Path to save debug_info.csv (default: debug_info.csv).')
+    parser.add_argument('--verbosity', type=str, choices=['none', 'minimal', 'maximum'], default='none',
+                        help='Set the verbosity level for debugging (default: none).')
 
     return parser.parse_args()
 
 
 def main():
     args = parse_arguments()
+
+    # Map verbosity string to numeric levels
+    verbosity_mapping = {
+        'none': VERBOSITY_NONE,
+        'minimal': VERBOSITY_MINIMAL,
+        'maximum': VERBOSITY_MAXIMUM
+    }
+    verbosity_level = verbosity_mapping.get(args.verbosity, VERBOSITY_NONE)
 
     try:
         summary = infer_locations(
@@ -47,7 +57,8 @@ def main():
             output_inferred_continuous=args.output_inferred_continuous,
             output_inferred_discrete=args.output_inferred_discrete,
             output_locations_continuous=args.output_locations_continuous,
-            output_debug=args.output_debug
+            output_debug=args.output_debug,
+            verbosity=verbosity_level
         )
 
         # Print summary
@@ -58,7 +69,8 @@ def main():
             print(f"- Inferred Discrete States: {summary['inferred_discrete_states']}")
         if summary["continuous_sample_locations"]:
             print(f"- Continuous Sample Locations: {summary['continuous_sample_locations']}")
-        print(f"- Debug Logs: {summary['debug_logs']}")
+        if summary["debug_logs"]:
+            print(f"- Debug Logs: {summary['debug_logs']}")
 
     except RuntimeError as e:
         print(e)

@@ -12,17 +12,42 @@ import tskit
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+# Define verbosity levels
+VERBOSITY_NONE = 0
+VERBOSITY_MINIMAL = 1
+VERBOSITY_MAXIMUM = 2
+
 # Initialize a lock for thread-safe operations
 debug_lock = threading.Lock()
 debug_logs = []
 
+# Initialize global verbosity level
+VERBOSITY = VERBOSITY_NONE
 
-def log_debug(message):
+
+def set_verbosity(level):
     """
-    Appends a debug message to the debug_logs list in a thread-safe manner.
+    Sets the global verbosity level.
+
+    Parameters:
+    - level (int): Verbosity level (0: none, 1: minimal, 2: maximum).
     """
-    with debug_lock:
-        debug_logs.append(message)
+    global VERBOSITY
+    VERBOSITY = level
+
+
+def log_debug(message, level=1):
+    """
+    Appends a debug message to the debug_logs list in a thread-safe manner based on verbosity level.
+
+    Parameters:
+    - message (str): The debug message to log.
+    - level (int): The verbosity level required to log this message.
+                   1 for minimal, 2 for maximum.
+    """
+    if VERBOSITY >= level:
+        with debug_lock:
+            debug_logs.append(message)
 
 
 def calculate_weighted_average(child_locations, weight_span, weight_branch_length):
@@ -145,7 +170,7 @@ def save_inferred_locations(inferred_locations, output_path="inferred_locations.
     - output_path (str): Path to the output CSV file.
     """
     if inferred_locations.size == 0:
-        log_debug(f"No inferred continuous locations to save to {output_path}.")
+        log_debug(f"No inferred continuous locations to save to {output_path}.", level=1)
         return
 
     num_nodes, dim = inferred_locations.shape
@@ -154,7 +179,7 @@ def save_inferred_locations(inferred_locations, output_path="inferred_locations.
         data[f'dim{d + 1}'] = inferred_locations[:, d]
     df = pd.DataFrame(data)
     df.to_csv(output_path, index=False)
-    log_debug(f"Saved inferred continuous locations to {output_path}")
+    log_debug(f"Saved inferred continuous locations to {output_path}", level=1)
 
 
 def save_inferred_states(inferred_states, output_path="inferred_states.csv"):
@@ -171,7 +196,7 @@ def save_inferred_states(inferred_states, output_path="inferred_states.csv"):
     }
     df = pd.DataFrame(data)
     df.to_csv(output_path, index=False)
-    log_debug(f"Saved inferred discrete states to {output_path}")
+    log_debug(f"Saved inferred discrete states to {output_path}", level=1)
 
 
 def save_debug_logs(output_path="debug_info.csv"):
@@ -181,12 +206,16 @@ def save_debug_logs(output_path="debug_info.csv"):
     Parameters:
     - output_path (str): Path to the output CSV file.
     """
+    if VERBOSITY == VERBOSITY_NONE:
+        return  # Do not save debug logs if verbosity is none
+
     with open(output_path, "w", newline='', encoding='utf-8') as debug_file:
         writer = csv.writer(debug_file)
         writer.writerow(["message"])  # Header
         for log in debug_logs:
             writer.writerow([log])
-    print(f"Saved debug logs to {output_path}")
+    if VERBOSITY >= VERBOSITY_MINIMAL:
+        print(f"Saved debug logs to {output_path}")
 
 
 def save_continuous_sample_locations(inferred_continuous_locations, output_path, dim, tree_sequence):
@@ -213,7 +242,7 @@ def save_continuous_sample_locations(inferred_continuous_locations, output_path,
             data[f'dim{d + 1}'] = inferred_sample_locations[:, d]
         df_inferred_samples = pd.DataFrame(data)
     df_inferred_samples.to_csv(output_path, index=False)
-    log_debug(f"Saved continuous sample locations to {output_path}")
+    log_debug(f"Saved continuous sample locations to {output_path}", level=1)
 
 
 def infer_continuous_locations(
@@ -251,7 +280,7 @@ def infer_continuous_locations(
         # Provided continuous sample locations
         continuous_sample_locations_df, dim = continuous_sample_locations
         continuous_sample_locations_df.set_index('node_id', inplace=True)
-        log_debug(f"Using provided continuous sample locations with dimensionality {dim}.")
+        log_debug(f"Using provided continuous sample locations with dimensionality {dim}.", level=1)
     else:
         # Infer sample locations from tree sequence's individuals
         sample_nodes = tree_sequence.samples()
@@ -260,13 +289,13 @@ def infer_continuous_locations(
 
         # Check if individuals have location data
         if len(locations) == 0 or np.all(np.isnan(locations)):
-            log_debug("No location data found in tree sequence's individuals. Skipping continuous inference.")
+            log_debug("No location data found in tree sequence's individuals. Skipping continuous inference.", level=1)
             return np.array([]), 0
 
         # Determine dimensionality based on location length
         num_individuals = tree_sequence.tables.individuals.num_rows
         if num_individuals == 0:
-            log_debug("No individuals found in tree sequence. Skipping continuous inference.")
+            log_debug("No individuals found in tree sequence. Skipping continuous inference.", level=1)
             return np.array([]), 0
 
         # Assuming fixed dimensionality across individuals
@@ -276,17 +305,17 @@ def infer_continuous_locations(
             raise ValueError("Location data length is not a multiple of the number of individuals.")
         dim = len(locations) // num_individuals
         if dim == 0:
-            log_debug("Invalid location data in tree sequence's individuals. Skipping continuous inference.")
+            log_debug("Invalid location data in tree sequence's individuals. Skipping continuous inference.", level=1)
             return np.array([]), 0
 
-        # Extract locations, pad with zeros if necessary
+        # Extract locations, pad with zeros if necessary (assuming tree sequence max 3 dimensions, but allowing more)
         inferred_sample_locations = []
         for ind_id in individual_ids:
             if ind_id != tskit.NULL:
                 start = ind_id * dim
                 end = start + dim
                 loc = locations[start:end]
-                # Pad with zeros if necessary (assuming tree sequence max 3 dimensions, but allowing more)
+                # Pad with zeros if necessary
                 if dim > 3 and len(loc) < dim:
                     loc = np.concatenate([loc, np.zeros(dim - len(loc))])
                 inferred_sample_locations.append(tuple(loc[:dim]))
@@ -301,7 +330,7 @@ def infer_continuous_locations(
         }
         continuous_sample_locations_df = pd.DataFrame(sample_data)
         continuous_sample_locations_df.set_index('node_id', inplace=True)
-        log_debug(f"Inferred continuous sample locations from tree sequence's individuals with dimensionality {dim}.")
+        log_debug(f"Inferred continuous sample locations from tree sequence's individuals with dimensionality {dim}.", level=1)
 
     if dim == 0:
         # No continuous processing needed
@@ -361,7 +390,7 @@ def infer_continuous_locations(
             for future in as_completed(futures):
                 u, loc = future.result()
                 inferred_continuous_locations[u] = loc
-                log_debug(f"Processed continuous node {u}")
+                log_debug(f"Processed continuous node {u}", level=2)
 
     return inferred_continuous_locations, dim
 
@@ -486,7 +515,7 @@ def infer_discrete_states(
                 u, states = future.result()
                 if states:
                     inferred_discrete_states[u] = states
-                log_debug(f"Processed discrete node {u}")
+                log_debug(f"Processed discrete node {u}", level=2)
 
     return inferred_discrete_states
 
@@ -498,10 +527,11 @@ def infer_locations(
         cost_matrix_path=None,
         weight_span=True,
         weight_branch_length=True,
-        output_inferred_continuous="inferred_locations.csv",
-        output_inferred_discrete="inferred_states.csv",
-        output_locations_continuous="continuous_sample_locations.csv",
-        output_debug="debug_info.csv"
+        output_inferred_continuous="fg_results/inferred_locations.csv",
+        output_inferred_discrete="fg_results/inferred_states.csv",
+        output_locations_continuous="fg_results/continuous_sample_locations.csv",
+        output_debug="fg_results/debug_info.csv",
+        verbosity=VERBOSITY_NONE
 ):
     """
     Core function to infer locations and/or states from a tree sequence.
@@ -517,12 +547,15 @@ def infer_locations(
     - output_inferred_discrete (str): Output path for inferred discrete states.
     - output_locations_continuous (str): Output path for continuous sample locations.
     - output_debug (str): Output path for debug logs.
+    - verbosity (int): Verbosity level (0: none, 1: minimal, 2: maximum).
     """
+    # Set verbosity level
+    set_verbosity(verbosity)
 
     # Load Tree Sequence
     try:
         ts = tskit.load(tree_path)
-        log_debug(f"Loaded tree sequence from {tree_path}")
+        log_debug(f"Loaded tree sequence from {tree_path}", level=1)
     except Exception as e:
         raise RuntimeError(f"Error loading tree sequence: {e}")
 
@@ -542,7 +575,7 @@ def infer_locations(
             continuous_sample_locations, inferred_dim = load_continuous_sample_locations(
                 continuous_sample_locations_path)
             log_debug(
-                f"Loaded continuous sample locations from {continuous_sample_locations_path} with dimensionality {inferred_dim}")
+                f"Loaded continuous sample locations from {continuous_sample_locations_path} with dimensionality {inferred_dim}", level=1)
             perform_continuous = True
         except Exception as e:
             raise RuntimeError(f"Error loading continuous sample locations: {e}")
@@ -557,13 +590,13 @@ def infer_locations(
             )
             perform_continuous = True if inferred_dim > 0 else False
             if perform_continuous:
-                log_debug(f"Inferred continuous sample locations from tree sequence with dimensionality {inferred_dim}")
+                log_debug(f"Inferred continuous sample locations from tree sequence with dimensionality {inferred_dim}", level=1)
         except Exception as e:
             raise RuntimeError(f"Error inferring continuous sample locations: {e}")
     else:
         perform_continuous = False
         log_debug(
-            "No continuous sample locations provided and tree sequence lacks location data. Skipping continuous inference.")
+            "No continuous sample locations provided and tree sequence lacks location data. Skipping continuous inference.", level=1)
 
     # Load Discrete Sample Locations if provided
     discrete_sample_locations = None
@@ -574,7 +607,7 @@ def infer_locations(
             if not required_columns.issubset(discrete_sample_locations.columns):
                 raise ValueError(f"Discrete sample locations CSV must contain columns: {required_columns}")
             discrete_sample_locations = discrete_sample_locations.set_index('node_id')
-            log_debug(f"Loaded discrete sample locations from {discrete_sample_locations_path}")
+            log_debug(f"Loaded discrete sample locations from {discrete_sample_locations_path}", level=1)
         except Exception as e:
             raise RuntimeError(f"Error loading discrete sample locations: {e}")
 
@@ -583,7 +616,7 @@ def infer_locations(
     if cost_matrix_path:
         try:
             cost_matrix = load_cost_matrix(cost_matrix_path)
-            log_debug(f"Loaded cost matrix from {cost_matrix_path}")
+            log_debug(f"Loaded cost matrix from {cost_matrix_path}", level=1)
         except Exception as e:
             raise RuntimeError(f"Error loading cost matrix: {e}")
 
@@ -620,20 +653,20 @@ def infer_locations(
                 discrete_sample_locations=discrete_sample_locations,
                 cost_matrix=cost_matrix
             )
-            log_debug("Completed discrete state inference.")
+            log_debug("Completed discrete state inference.", level=1)
         except Exception as e:
             raise RuntimeError(f"Error during discrete state inference: {e}")
 
     # End Timing
     end_time = time.time()
     elapsed_time_ms = (end_time - start_time) * 1000
-    log_debug(f"Total elapsed time: {elapsed_time_ms:.2f} ms")
+    log_debug(f"Total elapsed time: {elapsed_time_ms:.2f} ms", level=1)
 
     # Save inferred continuous locations
     if perform_continuous:
         save_inferred_locations(inferred_continuous_locations, output_inferred_continuous)
     else:
-        log_debug("No continuous locations inferred or provided. Skipping saving inferred continuous locations.")
+        log_debug("No continuous locations inferred or provided. Skipping saving inferred continuous locations.", level=1)
 
     # Save inferred discrete states if applicable
     if inferred_discrete_states is not None:
@@ -644,7 +677,7 @@ def infer_locations(
         if continuous_sample_locations_path:
             # If provided, save the original sample locations
             continuous_sample_locations.to_csv(output_locations_continuous, index=True)
-            log_debug(f"Saved provided continuous sample locations to {output_locations_continuous}")
+            log_debug(f"Saved provided continuous sample locations to {output_locations_continuous}", level=1)
         else:
             # If inferred, save the inferred sample locations
             save_continuous_sample_locations(
@@ -654,18 +687,19 @@ def infer_locations(
                 ts
             )
     else:
-        log_debug("No continuous sample locations to save. Skipping saving continuous sample locations.")
+        log_debug("No continuous sample locations to save. Skipping saving continuous sample locations.", level=1)
 
     # Save debug logs
-    debug_logs.insert(0, f"Total elapsed time: {elapsed_time_ms:.2f} ms")
-    save_debug_logs(output_debug)
+    if VERBOSITY > VERBOSITY_NONE:
+        debug_logs.insert(0, f"Total elapsed time: {elapsed_time_ms:.2f} ms")
+        save_debug_logs(output_debug)
 
     # Prepare summary
     summary = {
         "inferred_continuous_locations": output_inferred_continuous if perform_continuous else None,
         "inferred_discrete_states": output_inferred_discrete if inferred_discrete_states is not None else None,
         "continuous_sample_locations": output_locations_continuous if perform_continuous else None,
-        "debug_logs": output_debug
+        "debug_logs": output_debug if VERBOSITY > VERBOSITY_NONE else None
     }
 
     return summary
