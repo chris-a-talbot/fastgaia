@@ -447,7 +447,7 @@ def infer_discrete_states(
     for u in range(tree_sequence.num_nodes):
         node_time = nodes[u].time
         time_to_nodes[node_time].append(u)
-    sorted_times = sorted(time_to_nodes.keys(), reverse=True)  # Start from leaves
+    sorted_times = sorted(time_to_nodes.keys())  # Start from leaves
 
     def process_node_discrete(u):
         if u in sample_discrete_nodes:
